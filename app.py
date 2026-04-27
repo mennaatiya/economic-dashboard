@@ -2,19 +2,29 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+import os
 
 st.set_page_config(layout="wide")
 
 st.title("📊 Economic Stability & Crisis Dashboard")
 
 # =========================
-# Load Data
+# Safe Load Function
 # =========================
-df = pd.read_csv("processed_data.csv", parse_dates=['Date'], index_col='Date')
+def load_csv(file, **kwargs):
+    if os.path.exists(file):
+        return pd.read_csv(file, **kwargs)
+    else:
+        st.warning(f"{file} not found")
+        return None
 
-probs = pd.read_csv("xgb_probs.csv")
-imp = pd.read_csv("feature_importance.csv")
-corr = pd.read_csv("correlation_matrix.csv", index_col=0)
+# =========================
+# Load Data (SAFE)
+# =========================
+df = load_csv("processed_data.csv", parse_dates=['Date'], index_col='Date')
+probs = load_csv("xgb_probs.csv")
+imp = load_csv("feature_importance.csv")
+corr = load_csv("correlation_matrix.csv", index_col=0)
 
 # =========================
 # Sidebar
@@ -37,10 +47,13 @@ section = st.sidebar.radio("Select Section", [
 # =========================
 if section == "Overview":
     st.subheader("Dataset Overview")
-    st.dataframe(df.head())
 
-    st.write("### Summary Statistics")
-    st.write(df.describe())
+    if df is not None:
+        st.dataframe(df.head())
+        st.write("### Summary Statistics")
+        st.write(df.describe())
+    else:
+        st.error("Dataset not available")
 
 # =========================
 # 2. ADF
@@ -103,33 +116,28 @@ elif section == "FEVD":
 # =========================
 elif section == "Economic Stability":
 
-    fig = px.line(df,
-                  y="Economic_Stability_Index",
-                  title="Economic Stability Over Time")
+    if df is not None and "Economic_Stability_Index" in df.columns:
+        fig = px.line(df,
+                      y="Economic_Stability_Index",
+                      title="Economic Stability Over Time")
 
-    st.plotly_chart(fig, use_container_width=True)
-
-    st.write("""
-    - Stability fluctuates over time
-    - Drops correspond to economic shocks
-    """)
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.warning("Economic Stability data not available")
 
 # =========================
 # 8. Shock Detection
 # =========================
 elif section == "Shock Detection":
 
-    if "Shock" in df.columns:
+    if df is not None and "Shock" in df.columns:
         fig = px.scatter(df,
                          y="Shock",
                          title="Shock Occurrence")
 
         st.plotly_chart(fig, use_container_width=True)
-
-        st.write("""
-        - Shocks detected using residual threshold
-        - Represents abnormal economic behavior
-        """)
+    else:
+        st.warning("Shock data not available")
 
 # =========================
 # 9. Correlation Heatmap
@@ -138,17 +146,15 @@ elif section == "Correlation Heatmap":
 
     st.subheader("Correlation Matrix")
 
-    fig = px.imshow(corr,
-                    text_auto=True,
-                    aspect="auto",
-                    title="Feature Correlation Heatmap")
+    if corr is not None:
+        fig = px.imshow(corr,
+                        text_auto=True,
+                        aspect="auto",
+                        title="Feature Correlation Heatmap")
 
-    st.plotly_chart(fig, use_container_width=True)
-
-    st.write("""
-    - Shows relationships between variables
-    - High correlation may indicate multicollinearity
-    """)
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.warning("Correlation data not available")
 
 # =========================
 # 10. ML Prediction
@@ -157,12 +163,15 @@ elif section == "Crisis Prediction (ML)":
 
     st.subheader("Model Performance")
 
-
-    fig_auc = px.bar(auc,
-                     x="Model",
-                     y="AUC",
-                     title="Model Comparison (AUC)")
-
+    # لو عندك auc ضيفيه هنا
+    if 'auc' in globals():
+        fig_auc = px.bar(auc,
+                         x="Model",
+                         y="AUC",
+                         title="Model Comparison (AUC)")
+        st.plotly_chart(fig_auc, use_container_width=True)
+    else:
+        st.warning("AUC data not available")
 
     st.write("""
     - Random Forest outperformed XGBoost
@@ -174,32 +183,34 @@ elif section == "Crisis Prediction (ML)":
     # =====================
     st.subheader("Feature Importance")
 
-    fig_imp = px.bar(imp.head(10),
-                     x='Importance',
-                     y='Feature',
-                     orientation='h',
-                     title="Top Important Features")
+    if imp is not None:
+        fig_imp = px.bar(imp.head(10),
+                         x='Importance',
+                         y='Feature',
+                         orientation='h',
+                         title="Top Important Features")
 
-    st.plotly_chart(fig_imp, use_container_width=True)
-
-    st.write("""
-    - Shows most influential variables in prediction
-    """)
+        st.plotly_chart(fig_imp, use_container_width=True)
+    else:
+        st.warning("Feature importance not available")
 
     # =====================
     # Crisis Probability
     # =====================
     st.subheader("Early Warning Signal")
 
-    fig_prob = go.Figure()
-    fig_prob.add_trace(go.Scatter(
-        y=probs['prob'],
-        name="Crisis Probability"
-    ))
+    if probs is not None and 'prob' in probs.columns:
+        fig_prob = go.Figure()
+        fig_prob.add_trace(go.Scatter(
+            y=probs['prob'],
+            name="Crisis Probability"
+        ))
 
-    fig_prob.add_hline(y=0.5, line_dash="dash")
+        fig_prob.add_hline(y=0.5, line_dash="dash")
 
-    st.plotly_chart(fig_prob, use_container_width=True)
+        st.plotly_chart(fig_prob, use_container_width=True)
+    else:
+        st.warning("Probability data not available")
 
     st.write("""
     - Values above 0.5 indicate high crisis risk
