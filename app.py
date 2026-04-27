@@ -2,217 +2,128 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-import os
 
-st.set_page_config(layout="wide")
+st.set_page_config(page_title="Economic Stability Dashboard", layout="wide")
 
-st.title("📊 Economic Stability & Crisis Dashboard")
-
-# =========================
-# Safe Load Function
-# =========================
-def load_csv(file, **kwargs):
-    if os.path.exists(file):
-        return pd.read_csv(file, **kwargs)
-    else:
-        st.warning(f"{file} not found")
-        return None
+st.title("📊 Economic Stability & Crisis Prediction Dashboard")
 
 # =========================
-# Load Data (SAFE)
+# LOAD DATA
 # =========================
-df = load_csv("processed_data.csv", parse_dates=['Date'], index_col='Date')
-probs = load_csv("xgb_probs.csv")
-imp = load_csv("feature_importance.csv")
-corr = load_csv("correlation_matrix.csv", index_col=0)
+df = pd.read_csv("processed_data.csv", index_col=0, parse_dates=True)
+shock = pd.read_csv("shock_data.csv", index_col=0, parse_dates=True)
+importance = pd.read_csv("importance.csv")
+model_comp = pd.read_csv("model_comparison.csv")
+probs = pd.read_csv("probs.csv")
 
 # =========================
-# Sidebar
+# TABS
 # =========================
-section = st.sidebar.radio("Select Section", [
-    "Overview",
-    "Stationarity (ADF)",
-    "Cointegration (Johansen)",
-    "VECM",
-    "IRF",
-    "FEVD",
-    "Economic Stability",
-    "Shock Detection",
-    "Correlation Heatmap",
-    "Crisis Prediction (ML)"
+tab1, tab2, tab3, tab4, tab5 = st.tabs([
+    "📈 Data",
+    "🤖 Models",
+    "⚠️ Crisis",
+    "📊 Importance",
+    "🔮 Forecast"
 ])
 
 # =========================
-# 1. Overview
+# 📈 DATA TAB
 # =========================
-if section == "Overview":
-    st.subheader("Dataset Overview")
+with tab1:
+    st.subheader("Economic Stability Over Time")
 
-    if df is not None:
-        st.dataframe(df.head())
-        st.write("### Summary Statistics")
-        st.write(df.describe())
-    else:
-        st.error("Dataset not available")
+    fig = px.line(df, y=df.columns[0])
+    st.plotly_chart(fig, use_container_width=True)
+
+    st.dataframe(df.tail())
 
 # =========================
-# 2. ADF
+# 🤖 MODELS TAB
 # =========================
-elif section == "Stationarity (ADF)":
-    st.subheader("ADF Test Results")
+with tab2:
+    st.subheader("Model Comparison")
 
-    st.write("""
-    - Used to test stationarity
-    - Variables became stationary after differencing
-    - Suitable for VECM modeling
-    """)
+    fig = px.bar(model_comp, x="Model", y="AUC")
+    st.plotly_chart(fig, use_container_width=True)
 
-# =========================
-# 3. Johansen
-# =========================
-elif section == "Cointegration (Johansen)":
-    st.subheader("Johansen Cointegration Test")
-
-    st.write("""
-    - Long-run relationships exist between variables
-    - Justifies using VECM instead of VAR
-    """)
+    st.dataframe(model_comp)
 
 # =========================
-# 4. VECM
+# ⚠️ CRISIS TAB
 # =========================
-elif section == "VECM":
-    st.subheader("Vector Error Correction Model")
+with tab3:
+    st.subheader("Crisis Probability")
 
-    st.write("""
-    - Captures short-run and long-run dynamics
-    - Adjustment toward equilibrium confirmed
-    """)
+    fig = go.Figure()
 
-# =========================
-# 5. IRF
-# =========================
-elif section == "IRF":
-    st.subheader("Impulse Response Function")
+    fig.add_trace(go.Scatter(
+        y=probs.iloc[:,0],
+        mode='lines',
+        name='Probability'
+    ))
 
-    st.write("""
-    - Shows response of variables to shocks
-    - Some effects are temporary, others persistent
-    """)
+    fig.add_hline(y=0.5, line_dash="dash")
+
+    st.plotly_chart(fig, use_container_width=True)
 
 # =========================
-# 6. FEVD
+# 📊 IMPORTANCE TAB
 # =========================
-elif section == "FEVD":
-    st.subheader("Forecast Error Variance Decomposition")
-
-    st.write("""
-    - Identifies most influential variables
-    - Inflation and GDP are major drivers
-    """)
-
-# =========================
-# 7. Stability
-# =========================
-elif section == "Economic Stability":
-
-    if df is not None and "Economic_Stability_Index" in df.columns:
-        fig = px.line(df,
-                      y="Economic_Stability_Index",
-                      title="Economic Stability Over Time")
-
-        st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.warning("Economic Stability data not available")
-
-# =========================
-# 8. Shock Detection
-# =========================
-elif section == "Shock Detection":
-
-    if df is not None and "Shock" in df.columns:
-        fig = px.scatter(df,
-                         y="Shock",
-                         title="Shock Occurrence")
-
-        st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.warning("Shock data not available")
-
-# =========================
-# 9. Correlation Heatmap
-# =========================
-elif section == "Correlation Heatmap":
-
-    st.subheader("Correlation Matrix")
-
-    if corr is not None:
-        fig = px.imshow(corr,
-                        text_auto=True,
-                        aspect="auto",
-                        title="Feature Correlation Heatmap")
-
-        st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.warning("Correlation data not available")
-
-# =========================
-# 10. ML Prediction
-# =========================
-elif section == "Crisis Prediction (ML)":
-
-    st.subheader("Model Performance")
-
-    # لو عندك auc ضيفيه هنا
-    if 'auc' in globals():
-        fig_auc = px.bar(auc,
-                         x="Model",
-                         y="AUC",
-                         title="Model Comparison (AUC)")
-        st.plotly_chart(fig_auc, use_container_width=True)
-    else:
-        st.warning("AUC data not available")
-
-    st.write("""
-    - Random Forest outperformed XGBoost
-    - Better ability to detect shocks
-    """)
-
-    # =====================
-    # Feature Importance
-    # =====================
+with tab4:
     st.subheader("Feature Importance")
 
-    if imp is not None:
-        fig_imp = px.bar(imp.head(10),
-                         x='Importance',
-                         y='Feature',
-                         orientation='h',
-                         title="Top Important Features")
+    importance_sorted = importance.sort_values(by="Importance", ascending=False)
 
-        st.plotly_chart(fig_imp, use_container_width=True)
-    else:
-        st.warning("Feature importance not available")
+    fig = px.bar(
+        importance_sorted.head(15),
+        x="Importance",
+        y="Feature",
+        orientation='h'
+    )
 
-    # =====================
-    # Crisis Probability
-    # =====================
-    st.subheader("Early Warning Signal")
+    st.plotly_chart(fig, use_container_width=True)
 
-    if probs is not None and 'prob' in probs.columns:
-        fig_prob = go.Figure()
-        fig_prob.add_trace(go.Scatter(
-            y=probs['prob'],
-            name="Crisis Probability"
-        ))
+# =========================
+# 🔮 FORECAST TAB
+# =========================
+with tab5:
+    st.subheader("Future Forecast")
 
-        fig_prob.add_hline(y=0.5, line_dash="dash")
+    df['t'] = range(len(df))
 
-        st.plotly_chart(fig_prob, use_container_width=True)
-    else:
-        st.warning("Probability data not available")
+    from sklearn.linear_model import LinearRegression
 
-    st.write("""
-    - Values above 0.5 indicate high crisis risk
-    - Used as early warning system
-    """)
+    X = df[['t']]
+    y = df.iloc[:,0]
+
+    model = LinearRegression()
+    model.fit(X, y)
+
+    future_steps = 10
+    future_t = pd.DataFrame({'t': range(len(df), len(df)+future_steps)})
+
+    future_pred = model.predict(future_t)
+
+    future_dates = pd.date_range(
+        start=df.index[-1],
+        periods=future_steps+1,
+        freq='QE'
+    )[1:]
+
+    fig = go.Figure()
+
+    fig.add_trace(go.Scatter(
+        x=df.index,
+        y=y,
+        name="Actual"
+    ))
+
+    fig.add_trace(go.Scatter(
+        x=future_dates,
+        y=future_pred,
+        name="Forecast",
+        line=dict(dash="dash")
+    ))
+
+    st.plotly_chart(fig, use_container_width=True)
