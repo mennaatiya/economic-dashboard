@@ -11,7 +11,7 @@ st.title("📊 Economic Stability & Crisis Dashboard")
 # Load Data
 # =========================
 df = pd.read_csv("processed_data.csv", parse_dates=['Date'], index_col='Date')
-auc = pd.read_csv("shock_prediction_auc.csv")
+
 probs = pd.read_csv("xgb_probs.csv")
 imp = pd.read_csv("feature_importance.csv")
 corr = pd.read_csv("correlation_matrix.csv", index_col=0)
@@ -157,14 +157,12 @@ elif section == "Crisis Prediction (ML)":
 
     st.subheader("Model Performance")
 
-    st.dataframe(auc)
 
     fig_auc = px.bar(auc,
                      x="Model",
                      y="AUC",
                      title="Model Comparison (AUC)")
 
-    st.plotly_chart(fig_auc, use_container_width=True)
 
     st.write("""
     - Random Forest outperformed XGBoost
