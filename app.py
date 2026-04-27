@@ -202,4 +202,8 @@ elif section == "Crisis Prediction":
 # FOOTER
 # =========================
 st.markdown("---")
+st.download_button("Download Data", df.to_csv(), "data.csv")
+import seaborn as sns
+fig = px.imshow(df.corr())
+st.plotly_chart(fig)
 st.markdown("👩‍💻 Developed for Graduation Project | Machine Learning & Econometrics")
